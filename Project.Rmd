@@ -1,0 +1,88 @@
+---
+title: "Coursera - Practical Machine Learning - Project"
+author: "Marcos Takeshi Sato"
+date: "August 29, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Download files
+We need to download the dataset files from the links below:</br>
+  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</br>
+  https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</br>
+  
+and set the working directory ( setwd("") ) to the path of these files.
+
+## Data
+The first thing to do is load the dataset (training) and clean it.
+
+```{r}
+exercise <- read.csv("./pml-training.csv", na.strings = c("", "NA", "#DIV/0!"))
+```
+
+We can remove the columns that have too many NA values by calculating the NA ratio for each column (and remove those column with NA ratio higher than 70%)</br>
+We will remove the ID column as well.</br>
+*note that we search from the last column to the first to avoid problems by the removal of the current column
+```{r}
+for (x in length(exercise):1) {
+  if (dim(exercise[is.na(exercise[,x])==TRUE,][x])[1] / nrow(exercise) >= 0.7) { 
+    exercise <- exercise[,-x] 
+  }
+}
+exercise$X <- NULL
+```
+
+Now we can set the seed for reproducible purposes:
+```{r}
+set.seed(777)
+```
+
+And split the training dataset for the model and the predict:
+```{r}
+library(caret)
+inTrain <- createDataPartition(y = exercise$classe, p = 0.7, list = FALSE)
+training <- exercise[inTrain,]
+testing <- exercise[-inTrain,]
+```
+
+## Training
+As we could see in one of the exercises of the quizzes, Random Forest method can give us a high accuracy.
+```{r}
+library(randomForest)
+modRF <- randomForest(classe ~ ., data = training)
+```
+*(it took 38 seconds to process)
+
+## Testing
+With the model and the testing data, now we can predict:
+```{r}
+predRF <- predict(modRF, testing)
+```
+
+And test the results:
+```{r}
+confusionMatrix(predRF, testing$classe)
+```
+
+## Applying to other data
+With the Random Forest model, now we can solve the exercise:
+*we need to ajust the levels os the factor variables first.
+```{r}
+newExercise <- read.csv("./pml-testing.csv", na.strings = c("", "NA", "#DIV/0!"))
+for (x in 1:length(newExercise)) {
+  for (y in 1:length(training)) {
+    if ((names(newExercise[x]) == names(training[y])) & (class(newExercise[,x]) == "factor")) {
+      levels(newExercise[,x]) <- levels(training[,y])
+    }
+  }
+}
+newPred <- predict(modRF, newExercise)
+```
+
+And this is the result:
+```{r}
+newPred
+```
